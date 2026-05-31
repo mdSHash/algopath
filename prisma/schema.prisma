@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  image       String?
+  password    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  submissions Submission[]
+  progress    Progress[]
+}
+
+model Problem {
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  number         Int          @unique
+  title          String
+  difficulty     String
+  description    String
+  examples       String
+  constraints    String
+  tags           String
+  hints          String
+  starterCode    String
+  testCases      String
+  acceptanceRate Float        @default(0)
+  createdAt      DateTime     @default(now())
+  submissions    Submission[]
+  progress       Progress[]
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  userId      String
+  problemId   String
+  language    String
+  logicText   String
+  code        String
+  status      String
+  runtime     String?
+  memory      String?
+  testsPassed Int      @default(0)
+  testsTotal  Int      @default(0)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([problemId])
+}
+
+model Progress {
+  id            String    @id @default(cuid())
+  userId        String
+  problemId     String
+  phase         String    @default("understand")
+  logicApproved Boolean   @default(false)
+  logicText     String    @default("")
+  hintsUsed     Int       @default(0)
+  solvedAt      DateTime?
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem       Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@index([userId])
+}
