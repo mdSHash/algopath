@@ -9,6 +9,23 @@ A coding-practice platform that **forces you to write your problem-solving logic
 ![Languages](https://img.shields.io/badge/langs-Python%20%C2%B7%20JS%20%C2%B7%20Java-10b981?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-10b981?style=flat-square)
 
+🌐 **Live demo:** [algopath.vercel.app](https://algopath.vercel.app) · ⭐ **Star the repo** if you like the idea
+
+> **Demo account** (no signup needed):
+> ```
+> demo@algopath.dev / demo1234
+> ```
+
+---
+
+## 💭 Why I built this
+
+I kept watching myself, and the people I tutor, fall into the same trap on every coding-interview platform: open a problem, peek at the discussion tab, internalize someone else's pattern, type it in. *Pass.* No actual thinking. No mental model. The next time the same shape of problem shows up under a different name, you're stuck again — because you trained your fingers, not your head.
+
+AlgoPath is built around a single rule: **you cannot touch the code editor until you've explained, in your own words, how you'd solve the problem — and an AI tutor agrees that your approach is sound.** It nudges you when you're vague, asks Socratic questions when you're wrong, celebrates when you're right. The editor unlocks only when your *thinking* is in place.
+
+If you've ever wondered why interview prep feels like memorization instead of skill-building, this is my attempt at fixing the loop.
+
 ---
 
 ## ✨ The pitch in one screen
@@ -352,6 +369,26 @@ npm run db:studio  # Prisma Studio
 - Markdown rendering is hand-rolled and only handles trusted seed content; if you ever accept user-authored problems, swap to `react-markdown` + `rehype-sanitize`
 
 If you find a security issue, open a private security advisory on GitHub rather than a public issue.
+
+---
+
+## Roadmap
+
+A few directions I'm planning, in rough priority order. Tagged with effort so contributors can pick something appropriate:
+
+| Idea | Effort | Why |
+|---|---|---|
+| **Daily challenge + streaks** | Low | Habit-forming. One curated problem per day, streak counter on the profile. |
+| **Mock Interview Mode** | Medium-High | A 45-minute timed session where Gemini plays a tech interviewer, asks follow-ups, and grades on logic + communication + complexity awareness. |
+| **Algorithm visualization on solve** | High | After acceptance, an animated diorama showing your code executing on a small example — array cells lighting up, hash maps filling, recursion stack growing. |
+| **Adversarial test-case generator** | Medium | A button that asks Gemini to *try to break* your accepted solution with pathological inputs. |
+| **Voice-first logic phase** | Medium | Speak your approach instead of typing — the most authentic "explain like a human would" experience. |
+| **Whiteboard mode** | Medium-High | Sketch your logic with a pen tool; Gemini Vision interprets the drawing. |
+| **Spaced-repetition queue** | Medium | Problems you struggled with resurface 3d / 1w / 1mo later. |
+| **Skill tree** | Medium | Visual graph of topics + dependencies; mastery percentages; locked branches. |
+| **VS Code extension** | High | Solve AlgoPath problems without leaving the editor. |
+
+If any of those interest you, open an issue and let's talk.
 
 ---
 
