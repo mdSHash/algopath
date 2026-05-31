@@ -22,10 +22,37 @@ export function PhaseIndicator({
   const startedAt = useWorkspaceStore((s) => s.startedAt);
   const [now, setNow] = useState<number>(() => Date.now());
 
+  // L-2: only tick while the tab is visible. Pauses when backgrounded so we
+  // don't waste a wakeup every second on hidden tabs, and resumes promptly.
   useEffect(() => {
     if (!startedAt || phase === "solved") return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (interval) return;
+      interval = setInterval(() => setNow(Date.now()), 1000);
+    };
+    const stop = () => {
+      if (!interval) return;
+      clearInterval(interval);
+      interval = null;
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else {
+        setNow(Date.now()); // immediate refresh on return
+        start();
+      }
+    };
+
+    if (!document.hidden) start();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [startedAt, phase]);
 
   const currentIdx = PHASE_ORDER[phase];

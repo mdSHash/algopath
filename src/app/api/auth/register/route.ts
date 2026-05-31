@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  callerIdentity,
+  REGISTER_RATE,
+} from "@/lib/rate-limit";
 
 const schema = z.object({
   name: z.string().min(1).max(80),
@@ -11,6 +17,18 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // C-3: rate-limit registration per-IP. 5/hour is plenty for legit retries
+    // (typo'd email, wrong password) and starves automated signup farms.
+    const limit = checkRateLimit(
+      `register:${callerIdentity(req, null)}`,
+      REGISTER_RATE
+    );
+    const limitResponse = rateLimitResponse(
+      limit,
+      "Too many registration attempts from this address. Wait an hour and try again."
+    );
+    if (limitResponse) return limitResponse;
+
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {

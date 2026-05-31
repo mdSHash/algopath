@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getAuthedUserId } from "@/lib/api-auth";
 import { safeJsonParse } from "@/lib/utils";
 
 export async function GET(
@@ -13,8 +13,7 @@ export async function GET(
     return NextResponse.json({ error: "Problem not found" }, { status: 404 });
   }
 
-  const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const userId = await getAuthedUserId();
 
   const progress = userId
     ? await prisma.progress.findUnique({

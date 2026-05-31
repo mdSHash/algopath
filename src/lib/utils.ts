@@ -17,10 +17,34 @@ export function formatDuration(ms: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export function safeJsonParse<T>(s: string, fallback: T): T {
+import type { ZodType } from "zod";
+
+/**
+ * Parse a JSON string with a fallback. Without a schema, any successfully
+ * parsed value is returned as-is — including `null`, which is sometimes the
+ * wrong shape (e.g., the caller wanted an array). Pass a `schema` to enforce
+ * the expected shape; on validation failure the fallback is returned and a
+ * one-line warning is logged so the bad row can be tracked down.
+ */
+export function safeJsonParse<T>(
+  s: string,
+  fallback: T,
+  schema?: ZodType<T>
+): T {
+  let parsed: unknown;
   try {
-    return JSON.parse(s) as T;
+    parsed = JSON.parse(s);
   } catch {
     return fallback;
   }
+  if (!schema) return (parsed as T) ?? fallback;
+  const result = schema.safeParse(parsed);
+  if (!result.success) {
+    console.warn(
+      "[safeJsonParse] schema validation failed; using fallback",
+      result.error.issues.slice(0, 3)
+    );
+    return fallback;
+  }
+  return result.data;
 }

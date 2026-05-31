@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getAuthedUserId } from "@/lib/api-auth";
 import { safeJsonParse } from "@/lib/utils";
 
 export async function GET() {
@@ -8,8 +8,7 @@ export async function GET() {
     orderBy: { number: "asc" },
   });
 
-  const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const userId = await getAuthedUserId();
   const progress = userId
     ? await prisma.progress.findMany({ where: { userId } })
     : [];

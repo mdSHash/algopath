@@ -1,81 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import { Trophy, Medal, Crown, Award, Users, Code } from "lucide-react";
+import { getLeaderboard } from "@/lib/leaderboard";
 
 export const dynamic = "force-dynamic";
 
-const WEIGHTS = { Easy: 1, Medium: 3, Hard: 7 } as const;
-
 export default async function LeaderboardPage() {
-  // Same aggregation as /api/leaderboard, run server-side so the page is
-  // SSR-rendered and feels instant.
-  const solved = await prisma.progress.findMany({
-    where: { solvedAt: { not: null } },
-    include: {
-      user: { select: { id: true, name: true, image: true } },
-      problem: { select: { difficulty: true } },
-    },
-  });
-
-  type Bucket = {
-    userId: string;
-    name: string;
-    initial: string;
-    image: string | null;
-    easy: number;
-    medium: number;
-    hard: number;
-    total: number;
-    score: number;
-    hints: number;
-    lastSolvedAt: number;
-  };
-
-  const byUser = new Map<string, Bucket>();
-  for (const row of solved) {
-    const u = row.user;
-    if (!u) continue;
-    const display = (u.name && u.name.trim()) || `coder-${u.id.slice(-6)}`;
-    let b = byUser.get(u.id);
-    if (!b) {
-      b = {
-        userId: u.id,
-        name: display,
-        initial: display.charAt(0).toUpperCase(),
-        image: u.image ?? null,
-        easy: 0,
-        medium: 0,
-        hard: 0,
-        total: 0,
-        score: 0,
-        hints: 0,
-        lastSolvedAt: 0,
-      };
-      byUser.set(u.id, b);
-    }
-    const diff = row.problem.difficulty as keyof typeof WEIGHTS;
-    if (diff === "Easy") b.easy++;
-    else if (diff === "Medium") b.medium++;
-    else if (diff === "Hard") b.hard++;
-    b.total++;
-    b.score += WEIGHTS[diff] ?? 0;
-    b.hints += row.hintsUsed;
-    const ts = row.solvedAt ? row.solvedAt.getTime() : 0;
-    if (ts > b.lastSolvedAt) b.lastSolvedAt = ts;
-  }
-
-  const rows = Array.from(byUser.values()).sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    if (a.hints !== b.hints) return a.hints - b.hints;
-    return b.lastSolvedAt - a.lastSolvedAt;
-  });
-
-  const [totalUsers, totalSubmissions, totalProblems] = await Promise.all([
-    prisma.user.count(),
-    prisma.submission.count(),
-    prisma.problem.count(),
-  ]);
-
-  const top = rows.slice(0, 50);
+  const { entries, totals } = await getLeaderboard();
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -91,27 +20,26 @@ export default async function LeaderboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <StatPill Icon={Users} label="Coders" value={totalUsers} />
-          <StatPill Icon={Code} label="Submissions" value={totalSubmissions} />
-          <StatPill Icon={Award} label="Problems" value={totalProblems} />
+          <StatPill Icon={Users} label="Coders" value={totals.users} />
+          <StatPill Icon={Code} label="Submissions" value={totals.submissions} />
+          <StatPill Icon={Award} label="Problems" value={totals.problems} />
         </div>
       </div>
 
-      {top.length === 0 ? (
+      {entries.length === 0 ? (
         <div className="rounded-xl border border-[#2a2a2a] bg-[#111] py-16 text-center">
           <Trophy size={32} className="text-neutral-700 mx-auto mb-3" />
           <p className="text-neutral-400">
-            No one's solved a problem yet. Be the first.
+            No one&apos;s solved a problem yet. Be the first.
           </p>
         </div>
       ) : (
         <>
-          {/* Podium for top 3 */}
-          {top.length >= 1 && (
+          {entries.length >= 1 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
               {[1, 0, 2].map((i) =>
-                top[i] ? (
-                  <PodiumCard key={top[i].userId} entry={top[i]} rank={i + 1} />
+                entries[i] ? (
+                  <PodiumCard key={entries[i].userId} entry={entries[i]} rank={i + 1} />
                 ) : (
                   <div key={`empty-${i}`} className="hidden md:block" />
                 )
@@ -119,7 +47,6 @@ export default async function LeaderboardPage() {
             </div>
           )}
 
-          {/* Full table */}
           <div className="rounded-xl border border-[#2a2a2a] bg-[#111] overflow-hidden">
             <table className="w-full text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-neutral-500 bg-[#0e0e0e]">
@@ -135,13 +62,13 @@ export default async function LeaderboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {top.map((r, i) => (
+                {entries.map((r) => (
                   <tr
                     key={r.userId}
                     className="border-t border-[#1f1f1f] hover:bg-[#161616] transition"
                   >
                     <td className="px-4 py-3">
-                      <RankBadge rank={i + 1} />
+                      <RankBadge rank={r.rank} />
                     </td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-2.5">

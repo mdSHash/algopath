@@ -1445,28 +1445,38 @@ public class Main {
 async function main() {
   console.log("🌱 Seeding AlgoPath database...");
 
-  // Wipe existing problems (no foreign-key cascade issues since user data references them)
-  await prisma.problem.deleteMany({});
+  // H-1 fix: upsert by slug instead of deleteMany. The previous behaviour
+  // was disastrous in production — Submission and Progress have onDelete:
+  // Cascade on Problem, so wiping problems also wiped every user's history.
+  // Upsert preserves existing problem ids (so foreign keys stay valid) and
+  // only updates the metadata + content.
 
   const allProblems = [...PROBLEMS, ...EXTENDED_PROBLEMS];
-  console.log(`  → ${allProblems.length} problems to seed (${PROBLEMS.length} core + ${EXTENDED_PROBLEMS.length} extended)`);
+  console.log(
+    `  → ${allProblems.length} problems to seed (${PROBLEMS.length} core + ${EXTENDED_PROBLEMS.length} extended)`
+  );
 
   for (const p of allProblems) {
-    await prisma.problem.create({
-      data: {
-        slug: p.slug,
-        number: p.number,
-        title: p.title,
-        difficulty: p.difficulty,
-        description: p.description,
-        examples: JSON.stringify(p.examples),
-        constraints: JSON.stringify(p.constraints),
-        tags: JSON.stringify(p.tags),
-        hints: JSON.stringify(p.hints),
-        starterCode: JSON.stringify(p.starterCode),
-        testCases: JSON.stringify(p.testCases),
-        acceptanceRate: p.acceptanceRate,
-      },
+    const data = {
+      number: p.number,
+      title: p.title,
+      difficulty: p.difficulty,
+      description: p.description,
+      examples: JSON.stringify(p.examples),
+      constraints: JSON.stringify(p.constraints),
+      tags: JSON.stringify(p.tags),
+      hints: JSON.stringify(p.hints),
+      starterCode: JSON.stringify(p.starterCode),
+      testCases: JSON.stringify(p.testCases),
+      // Note: acceptanceRate is only seeded as the *initial* display value.
+      // Once real submissions roll in, the submit endpoint recomputes it
+      // live from submissionCount / acceptedCount.
+      acceptanceRate: p.acceptanceRate,
+    };
+    await prisma.problem.upsert({
+      where: { slug: p.slug },
+      create: { slug: p.slug, ...data },
+      update: data,
     });
     console.log(`  ✓ ${p.number}. ${p.title}`);
   }

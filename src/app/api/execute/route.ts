@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getAuthedUserId } from "@/lib/api-auth";
 import { runTestCases, PISTON_LANGUAGES } from "@/lib/piston";
 import type { TestCase, Language } from "@/types";
 import { safeJsonParse } from "@/lib/utils";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  callerIdentity,
+  EXEC_RATE,
+} from "@/lib/rate-limit";
 
 const schema = z.object({
   problemId: z.string(),
@@ -15,11 +21,20 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string } | undefined)?.id;
+    const userId = await getAuthedUserId();
     if (!userId) {
       return NextResponse.json({ error: "Sign in to run code." }, { status: 401 });
     }
+
+    const limit = checkRateLimit(
+      `exec:${callerIdentity(req, userId)}`,
+      EXEC_RATE
+    );
+    const limitResponse = rateLimitResponse(
+      limit,
+      "Too many executions in a short window. JDoodle's free quota is shared across users — give it a moment."
+    );
+    if (limitResponse) return limitResponse;
 
     const body = await req.json();
     const parsed = schema.safeParse(body);

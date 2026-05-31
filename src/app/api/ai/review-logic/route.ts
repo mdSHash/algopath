@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getAuthedUserId } from "@/lib/api-auth";
 import { reviewLogic } from "@/lib/gemini";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  callerIdentity,
+  AI_RATE,
+} from "@/lib/rate-limit";
 
 const schema = z.object({
   problemId: z.string(),
@@ -42,14 +48,23 @@ function fallbackReview(logicText: string): {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string } | undefined)?.id;
+    const userId = await getAuthedUserId();
     if (!userId) {
       return NextResponse.json(
         { error: "You must be signed in to submit logic." },
         { status: 401 }
       );
     }
+
+    const limit = checkRateLimit(
+      `ai:review-logic:${callerIdentity(req, userId)}`,
+      AI_RATE
+    );
+    const limitResponse = rateLimitResponse(
+      limit,
+      "Too many logic reviews in a short window. Take a breath and try again in a moment."
+    );
+    if (limitResponse) return limitResponse;
 
     const body = await req.json();
     const parsed = schema.safeParse(body);

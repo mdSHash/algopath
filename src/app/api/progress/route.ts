@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getAuthedUserId } from "@/lib/api-auth";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  callerIdentity,
+  PROGRESS_RATE,
+} from "@/lib/rate-limit";
 
 export async function GET() {
-  const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const userId = await getAuthedUserId();
   if (!userId) return NextResponse.json({ items: [] });
   const items = await prisma.progress.findMany({
     where: { userId },
@@ -47,11 +52,20 @@ function safeParseDrafts(raw: string): Record<string, string> {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const userId = await getAuthedUserId();
   if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const limit = checkRateLimit(
+    `progress:${callerIdentity(req, userId)}`,
+    PROGRESS_RATE
+  );
+  const limitResponse = rateLimitResponse(
+    limit,
+    "Too many save requests in a short window."
+  );
+  if (limitResponse) return limitResponse;
 
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);

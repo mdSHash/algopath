@@ -32,7 +32,12 @@ model Problem {
   hints          String
   starterCode    String
   testCases      String
+  /// Static seed value, kept as the initial display before any submissions exist.
   acceptanceRate Float        @default(0)
+  /// Live counters incremented by the submit endpoint. Acceptance rate is
+  /// computed at read time as `acceptedCount / submissionCount`.
+  submissionCount Int         @default(0)
+  acceptedCount   Int         @default(0)
   createdAt      DateTime     @default(now())
   submissions    Submission[]
   progress       Progress[]
@@ -46,16 +51,24 @@ model Submission {
   logicText   String
   code        String
   status      String
+  /// Median CPU time across test cases, e.g. "42ms". Populated from the
+  /// execution backend when available.
   runtime     String?
+  /// Peak memory across test cases, e.g. "8MB". Populated when available.
   memory      String?
   testsPassed Int      @default(0)
   testsTotal  Int      @default(0)
+  /// Cached AI complexity analysis (CodeAnalysis JSON). Re-served on repeat
+  /// "Analyze My Solution" clicks for the same submission to avoid burning
+  /// Gemini tokens.
+  analysisJson String?
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([problemId])
+  @@index([userId, problemId, createdAt])
 }
 
 model Progress {
@@ -67,6 +80,9 @@ model Progress {
   logicText     String    @default("")
   /// JSON map of language -> draft source code, e.g. {"python":"...", "javascript":"...", "java":"..."}
   codeDrafts    String    @default("{}")
+  /// Bitmask of revealed hint levels: bit 0 = hint 1, bit 1 = hint 2, bit 2 = hint 3.
+  /// Used to enforce sequencing and dedupe so hintsUsed only counts unique reveals.
+  hintsRevealedMask Int   @default(0)
   hintsUsed     Int       @default(0)
   solvedAt      DateTime?
   updatedAt     DateTime  @updatedAt

@@ -2,227 +2,212 @@
 
 > Stop copying solutions. Start thinking.
 
-AlgoPath is a logic-first algorithmic practice platform. Unlike traditional coding sites, **the code editor stays locked until you've written your problem-solving approach in plain English and an AI tutor approves it.** The goal: build genuine algorithmic thinking, not muscle memory.
+A coding-practice platform that **forces you to write your problem-solving logic in plain English before the code editor unlocks**. An AI tutor reads your approach, asks Socratic questions when you're vague or wrong, celebrates when you're right, and only then hands you the editor. The goal: build *thinkers*, not copy-pasters.
 
-![Phase: Understand → Logic → Code → Solved](https://img.shields.io/badge/flow-Understand%20%E2%86%92%20Logic%20%E2%86%92%20Code%20%E2%86%92%20Solved-10b981?style=flat-square)
-![40 problems](https://img.shields.io/badge/problems-40-10b981?style=flat-square)
-![Languages: Python · JavaScript · Java](https://img.shields.io/badge/langs-Python%20%C2%B7%20JS%20%C2%B7%20Java-10b981?style=flat-square)
+![Phase flow](https://img.shields.io/badge/flow-Understand%20%E2%86%92%20Logic%20%E2%86%92%20Code%20%E2%86%92%20Solved-10b981?style=flat-square)
+![Problems](https://img.shields.io/badge/problems-40-10b981?style=flat-square)
+![Languages](https://img.shields.io/badge/langs-Python%20%C2%B7%20JS%20%C2%B7%20Java-10b981?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-10b981?style=flat-square)
 
 ---
 
-## What makes it different
+## ✨ The pitch in one screen
 
-| Traditional sites | AlgoPath |
-|---|---|
-| Open editor → write code → maybe pass tests | Read problem → **explain your approach** → AI reviews it → editor unlocks → write code |
-| Hints reveal whole solutions | Three progressive hints: vague → specific → near-explicit. **Never code.** |
-| Pattern-match against known solutions | Forced to articulate *why* an approach works before touching syntax |
+```
+   ┌────────────────┐    ┌────────────────┐    ┌────────────────┐    ┌──────────┐
+   │ 📖 UNDERSTAND  │───▶│ 🧠 LOGIC       │───▶│ 💻 CODE        │───▶│ ✅ DONE  │
+   │ Read problem   │    │ "Walk through  │    │ Editor unlocks │    │ Confetti │
+   │                │    │  your approach │    │ Run / Submit   │    │ + AI     │
+   │                │    │  in English."  │    │ tests          │    │ analysis │
+   └────────────────┘    └───────┬────────┘    └────────────────┘    └──────────┘
+                                 │
+                            🤖 AI reviews:
+                            ✓ approve  →  unlock editor
+                            ✗ vague    →  Socratic question
+                            ✗ wrong    →  guide back
+```
 
-The result: you can't shortcut the thinking. The Logic Gate is enforced both client-side (locked overlay over the Monaco editor) and server-side (`/api/execute` and `/api/submit` reject requests when `Progress.logicApproved !== true`).
+The **Logic Gate** is the central design choice. The editor is server-side locked: `/api/execute` and `/api/submit` both refuse to run code unless `Progress.logicApproved === true` for the authenticated user-problem pair. Frontend-only locking is insufficient.
+
+---
+
+## What's in the box
+
+| Feature                | What it does                                                                                  |
+|------------------------|----------------------------------------------------------------------------------------------|
+| **40 problems**        | Curated across Easy/Medium/Hard, each with descriptions, examples, constraints, and hints   |
+| **3 languages**        | Python · JavaScript · Java — full stdin/stdout drivers, real test cases                     |
+| **Logic Gate**         | Server-enforced: code editor unlocks only after AI approves your written approach           |
+| **AI logic review**    | Gemini reads your plain-English approach and gives a verdict + Socratic questions           |
+| **Progressive hints**  | Three hint levels per problem (vague → specific → near-explicit), enforced in order         |
+| **Code analysis**      | Post-solve, Gemini analyzes your accepted solution for time/space complexity and improvements|
+| **Auto-save**          | Every keystroke debounce-saves your code per language; refresh-proof                        |
+| **Phase navigation**   | Travel back to any phase you've already unlocked; future phases stay locked                |
+| **Leaderboard**        | Difficulty-weighted scoring, podium for top 3, top-50 table, 60s server cache               |
+| **Profile**            | Solved counts by difficulty, hints used, recent submissions                                  |
 
 ---
 
 ## Stack
 
-| Layer | Tech |
-|---|---|
-| Framework | Next.js 16 (App Router) + React 19 + TypeScript |
-| Styling | Tailwind CSS v4 + custom dark theme |
-| Animations | Framer Motion + CSS keyframes |
-| Editor | Monaco Editor (lazy-loaded) |
-| State | Zustand |
-| Database | Prisma 6 + SQLite (local) / Postgres (production) |
-| Auth | NextAuth v5 (credentials) |
-| AI | Google Gemini API (`@google/generative-ai`) |
-| Code execution | Local `child_process.spawn` (Python / Node / Java) |
-| Validation | Zod |
-| Toasts | react-hot-toast |
-| Icons | Lucide React |
-
----
-
-## Quickstart (local)
-
-```bash
-# 1. Clone & install
-git clone <your-fork-url>
-cd algopath
-npm install
-
-# 2. Set up environment
-cp .env.example .env       # then edit .env with your values
-
-# 3. Initialize the database
-npx prisma migrate dev
-npx prisma db seed         # loads all 40 problems + a demo user
-
-# 4. Run the dev server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-**Demo login:** `demo@algopath.dev` / `demo1234`
-
-### Required runtimes
-
-Code execution spawns local processes, so you need:
-
-- **Python 3** (`python` on Windows, `python3` on macOS/Linux) — for Python submissions
-- **Node.js 20+** — already required to run the app
-- **Java 17+** with `javac` — for Java submissions
-
-If a runtime is missing, only that language fails; the others still work.
-
----
-
-## Environment variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL` | yes | Prisma connection string. Local default: `file:./dev.db` |
-| `NEXTAUTH_SECRET` / `AUTH_SECRET` | yes | NextAuth JWT signing key |
-| `NEXTAUTH_URL` | yes (prod) | Public app URL, e.g. `https://your-app.vercel.app` |
-| `GEMINI_API_KEY` | yes for AI | Get one at [aistudio.google.com](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | optional | Default: `gemini-2.0-flash`. Overridable to `gemini-2.5-flash`, `gemini-1.5-flash`, etc. |
-| `EXEC_BACKEND` | optional | `local` (default) or `piston` (requires `PISTON_URL` for self-hosted Piston) |
-| `PISTON_URL` | optional | Self-hosted Piston endpoint when `EXEC_BACKEND=piston` |
-
-Local dev uses `.env` (loaded by Prisma) plus `.env.local` (loaded by Next.js, takes precedence over `.env`).
+| Layer       | Choice                                                                                       |
+|-------------|----------------------------------------------------------------------------------------------|
+| Framework   | Next.js 16 (App Router, server components, Turbopack)                                       |
+| Language    | TypeScript everywhere                                                                        |
+| Styling     | Tailwind CSS v4 + custom theme tokens                                                        |
+| State       | Zustand                                                                                      |
+| Animations  | Framer Motion (page transitions, staggered lists, podium reveal) + canvas-confetti          |
+| Editor      | Monaco Editor (lazy-loaded)                                                                  |
+| Auth        | NextAuth v5 (credentials provider, JWT sessions, bcryptjs)                                   |
+| ORM / DB    | Prisma 6 + PostgreSQL (Neon free tier in production, swap-ready for any Postgres)            |
+| AI          | Google Generative AI SDK + Gemini (model name configurable via `GEMINI_MODEL`)               |
+| Code exec   | JDoodle Compiler API (200 free executions/day, no card required)                             |
+| Validation  | Zod                                                                                          |
+| Rate limits | In-memory token-bucket (per-user / per-IP)                                                  |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────── Workspace page ────────────────┐
-│                                                 │
-│  ProblemPanel  │  PhaseIndicator                │
-│   (left 40%)   │  ┌─ Understand → Logic →        │
-│                │  │  Code → Solved (clickable    │
-│   - desc       │  │  for backward navigation)    │
-│   - examples   │  └────────────────────────────  │
-│   - constraints│                                 │
-│                │  LogicEditor / CodeEditorPanel  │
-│                │   (one shown per phase)         │
-│                │                                 │
-│                │  TestResults (after run)        │
-│                │  SolvedBanner (after submit)    │
-│                │                                 │
-│                │  HintDrawer (right slide-in)    │
-└────────────────┴────────────────────────────────┘
+                    ┌────────────────┐
+                    │  github.com    │
+                    │  (source)      │
+                    └────────┬───────┘
+                             │ push
+                             ▼
+                    ┌────────────────┐         ┌─────────────────┐
+                    │     Vercel     │ ◀──────▶│  Neon Postgres  │
+   user ───────────▶│  Next.js 16    │ Prisma  │  (data + auth)  │
+                    │  - app routes  │         └─────────────────┘
+                    │  - API routes  │
+                    │  - server comp │         ┌─────────────────┐
+                    │                │ ──────▶ │   Gemini API    │
+                    │                │         │ (logic review,  │
+                    │                │         │  hints, code    │
+                    │                │         │  analysis)      │
+                    │                │         └─────────────────┘
+                    │                │
+                    │                │         ┌─────────────────┐
+                    │                │ ──────▶ │   JDoodle API   │
+                    │                │         │ (run/submit code│
+                    │                │         │  in py/js/java) │
+                    └────────────────┘         └─────────────────┘
 ```
 
-### The Logic Gate
-
-1. User reads the problem (`understand` phase).
-2. Clicks **I Understand the Problem →** to advance to `logic`.
-3. Writes their approach in the LogicEditor (≥50 chars).
-4. **`POST /api/ai/review-logic`** sends approach to Gemini.
-5. Gemini returns `{ approved, verdict, feedback, questions, encouragement }`.
-6. If approved → `Progress.logicApproved = true`, phase advances to `coding`, editor unlocks.
-7. If not → feedback panel with Socratic questions; user revises.
-
-Once approved, **the user can navigate freely backward** through previous phases via clickable `PhaseIndicator` steps (max-phase tracked in the Zustand store). They can revisit their logic, the problem statement, or jump back to coding without re-reviewing.
-
-### Code execution
-
-By default, `runTestCases` spawns local processes:
-
-- **Python** → temp file + `python main.py` with stdin piped
-- **JavaScript** → temp file + `node main.js`
-- **Java** → temp dir + `javac Main.java` + `java -cp <dir> Main`
-
-10s run timeout, 20s compile timeout, 200KB output cap, isolated temp dir per run with cleanup. The local executor lives in [src/lib/local-exec.ts](src/lib/local-exec.ts); routing happens in [src/lib/piston.ts](src/lib/piston.ts) so swapping to a remote sandbox is one env var.
-
-> ⚠️ **Local execution runs untrusted code with your user's permissions.** Fine for a localhost dev tool you use yourself; do not expose this server to the public internet. For multi-user deployment, set `EXEC_BACKEND=piston` and point `PISTON_URL` at a self-hosted [Piston](https://github.com/engineer-man/piston) instance, or use Docker isolation.
+Every box is **free** — no credit card required for the deployment we ship. See [§ Deploy to Vercel](#deploy-to-vercel) for setup.
 
 ---
 
-## Deploying to Vercel
-
-This app is a real Next.js app (server components, API routes, server-side state) — so **GitHub Pages cannot host it**. Vercel is the natural fit.
-
-### Step 1 — Set up a Postgres database
-
-Vercel's serverless functions have a read-only filesystem in production, so the local SQLite file won't work. Use a hosted Postgres:
-
-**Option A: Neon** (recommended, generous free tier)
-1. Sign up at [neon.tech](https://neon.tech)
-2. Create a project, copy the connection string
-3. It will look like: `postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=require`
-
-**Option B: Vercel Postgres** (one-click from the Vercel dashboard, also Neon-backed)
-
-### Step 2 — Switch the Prisma datasource to PostgreSQL
-
-In [`prisma/schema.prisma`](prisma/schema.prisma), change:
-
-```prisma
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-to:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-Then locally, with `DATABASE_URL` pointing at your Neon database:
+## Quick start (local)
 
 ```bash
-npx prisma migrate dev --name init_postgres
-npx prisma db seed
+git clone https://github.com/<your-org>/algopath.git
+cd algopath
+npm install
+cp .env.example .env
+# Fill in DATABASE_URL (any Postgres works locally too) and GEMINI_API_KEY
+
+npx prisma migrate dev      # apply migrations
+npx prisma db seed          # seed 40 problems + a demo user
+npm run dev
 ```
 
-This creates the schema in Postgres and seeds all 40 problems.
+Open [http://localhost:3000](http://localhost:3000), then sign in with the demo account:
 
-### Step 3 — Code execution caveat
-
-Vercel serverless functions **do not have Python or Java available** and don't allow spawning long-running subprocesses. You have three options:
-
-1. **Self-host Piston** on a small VM (Docker, ~$5/mo) and set `EXEC_BACKEND=piston` + `PISTON_URL=https://your-piston.example.com/api/v2/piston/execute`. Recommended for production.
-2. **Disable code execution in production** — keep the logic-review experience as the headline feature, show a banner explaining tests run only locally.
-3. **Use a serverless code-execution service** (e.g., [Judge0 on RapidAPI](https://rapidapi.com/judge0-official/api/judge0-ce)). Requires adapting the executor.
-
-### Step 4 — Push to GitHub, then import to Vercel
-
-```bash
-# (Already done if you used the auto-push setup below.)
-git push origin main
+```
+demo@algopath.dev / demo1234
 ```
 
-1. Go to [vercel.com/new](https://vercel.com/new)
-2. Import your GitHub repo
-3. Add environment variables: `DATABASE_URL`, `NEXTAUTH_SECRET`, `AUTH_SECRET`, `NEXTAUTH_URL` (will be `https://<project>.vercel.app`), `GEMINI_API_KEY`, `GEMINI_MODEL`, optionally `EXEC_BACKEND` + `PISTON_URL`
-4. Deploy
-
-That's it.
+> **Local code execution.** When `EXEC_BACKEND` is unset and you're not on Vercel, the server spawns `python` / `node` / `java` directly on your machine via `child_process.spawn` (10s timeout, 200KB output cap). Best for solo dev — don't expose the dev server to the internet without putting JDoodle (or a sandbox) back in front.
 
 ---
 
-## Problem catalog
+## Deploy to Vercel
 
-40 problems across three difficulties:
+The whole stack runs on free tiers, no credit card anywhere. About 15 minutes end-to-end.
 
-| Difficulty | Count | Topics |
-|---|---|---|
-| Easy | 15 | Arrays, Hash Tables, Strings, Stacks, Linked Lists, Binary Search, Bit Manipulation, Math, Two Pointers |
-| Medium | 19 | Sliding Window, DP, BFS/DFS, Backtracking, Heap, Sorting, Matrix, Design |
-| Hard | 6 | Two Pointers, Heap, Binary Search, Backtracking, DP, String matching |
+### 1. Database — Neon
 
-Every problem ships with:
+1. Sign up at [neon.tech](https://neon.tech), create a new project
+2. Copy the **pooled connection string** (Postgres-compatible)
+3. Save it for the next step
 
-- A clear problem statement, 3 examples, 4–6 constraints
-- 3 progressive hints (vague → specific → algorithmic walkthrough)
-- Working starter code in **Python**, **JavaScript**, and **Java** with stdin/stdout drivers
-- 5 test cases including edge cases
+### 2. Code execution — JDoodle
+
+Vercel's Node runtime has no Python or Java, so we offload code execution to JDoodle's free Compiler API.
+
+1. Sign up at [jdoodle.com/compiler-api](https://www.jdoodle.com/compiler-api)
+2. Subscribe to the **Free** plan — email verification only, **no card required**
+3. Copy your **Client ID** and **Client Secret**
+
+### 3. AI — Gemini
+
+1. Get a free API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+2. Default model is `gemini-2.0-flash`. Override with `GEMINI_MODEL` if you want something newer (e.g., `gemini-2.5-flash`)
+
+### 4. Vercel — Import
+
+1. Push this repo to your GitHub account
+2. Go to [vercel.com/new](https://vercel.com/new) and import the repo
+3. Framework: **Next.js** (auto-detected)
+4. Add these **Environment Variables** (apply each to Production + Preview + Development):
+
+| Key                      | Value                                                       |
+|--------------------------|-------------------------------------------------------------|
+| `DATABASE_URL`           | *(Neon connection string from step 1)*                      |
+| `NEXTAUTH_SECRET`        | *(generate: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`)* |
+| `AUTH_SECRET`            | *(same value as `NEXTAUTH_SECRET`)*                         |
+| `AUTH_TRUST_HOST`        | `true`                                                      |
+| `NEXTAUTH_URL`           | *(set after first deploy to your live URL)*                 |
+| `NEXT_PUBLIC_SITE_URL`   | *(same as `NEXTAUTH_URL`)*                                  |
+| `GEMINI_API_KEY`         | *(from step 3)*                                             |
+| `GEMINI_MODEL`           | `gemini-2.0-flash` *(or override)*                          |
+| `EXEC_BACKEND`           | `jdoodle`                                                   |
+| `JDOODLE_CLIENT_ID`      | *(from step 2)*                                             |
+| `JDOODLE_CLIENT_SECRET`  | *(from step 2)*                                             |
+
+5. Click **Deploy**
+
+Vercel runs the build script:
+```
+prisma generate && prisma migrate deploy && next build
+```
+which auto-applies all migrations to Neon — you don't need to run anything locally for production.
+
+After the first deploy, copy the live URL into `NEXTAUTH_URL` and `NEXT_PUBLIC_SITE_URL`, then **Redeploy** once.
+
+---
+
+## Environment reference
+
+```bash
+# Required ──────────────────────────────────────────────────
+DATABASE_URL=postgresql://user:pwd@host/db?sslmode=require
+NEXTAUTH_SECRET=                  # 64+ random bytes, base64url
+AUTH_SECRET=                      # same as NEXTAUTH_SECRET
+GEMINI_API_KEY=
+
+# Recommended ───────────────────────────────────────────────
+AUTH_TRUST_HOST=true              # required behind Vercel/proxies
+NEXTAUTH_URL=https://your.app
+NEXT_PUBLIC_SITE_URL=https://your.app
+GEMINI_MODEL=gemini-2.0-flash
+
+# Code execution backend ────────────────────────────────────
+EXEC_BACKEND=jdoodle              # jdoodle | local | piston | disabled
+
+# When EXEC_BACKEND=jdoodle (recommended on Vercel)
+JDOODLE_CLIENT_ID=
+JDOODLE_CLIENT_SECRET=
+# Optional per-language version overrides:
+# JDOODLE_VERSION_PYTHON=4
+# JDOODLE_VERSION_JAVASCRIPT=4
+# JDOODLE_VERSION_JAVA=4
+
+# When EXEC_BACKEND=piston (self-hosted)
+# PISTON_URL=https://your-piston/api/v2/piston/execute
+```
 
 ---
 
@@ -231,53 +216,170 @@ Every problem ships with:
 ```
 algopath/
 ├── prisma/
-│   ├── schema.prisma          # Database schema
-│   ├── seed.ts                # Original 15 problems + demo user
-│   └── seed-extended.ts       # 25 additional problems
+│   ├── schema.prisma                    # User, Problem, Submission, Progress
+│   ├── migrations/                      # Auto-applied on Vercel build
+│   ├── seed.ts                          # Upserts 40 problems by slug
+│   └── seed-extended.ts                 # The +25 expansion problems
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/            # /login, /register
-│   │   ├── api/               # All API routes (auth, problems, AI, execute, submit)
-│   │   ├── problems/          # Problem list + workspace
-│   │   ├── profile/           # User stats + history
-│   │   ├── layout.tsx
-│   │   └── page.tsx           # Landing page
+│   │   ├── (auth)/                      # /login, /register
+│   │   ├── api/
+│   │   │   ├── ai/
+│   │   │   │   ├── review-logic/        # Gemini logic verdict
+│   │   │   │   ├── hint/                # Progressive hints (sequenced + auth-gated)
+│   │   │   │   ├── review-code/         # Socratic debugging
+│   │   │   │   └── analyze-code/        # Time/space analysis (cached on Submission)
+│   │   │   ├── auth/                    # NextAuth + register
+│   │   │   ├── problems/                # GET problems list + GET one
+│   │   │   ├── progress/                # GET/PATCH per-user progress + autosave
+│   │   │   ├── leaderboard/             # GET cached leaderboard
+│   │   │   ├── execute/                 # Run code against sample tests
+│   │   │   └── submit/                  # Run code against all tests
+│   │   ├── leaderboard/page.tsx
+│   │   ├── problems/[slug]/page.tsx     # Workspace
+│   │   ├── profile/page.tsx
+│   │   ├── robots.ts                    # Auto-generated /robots.txt
+│   │   ├── sitemap.ts                   # Auto-generated /sitemap.xml
+│   │   ├── layout.tsx                   # OG metadata, fonts, providers
+│   │   └── page.tsx                     # Landing
 │   ├── components/
-│   │   ├── ai/                # HintDrawer
-│   │   ├── layout/            # Navbar
-│   │   ├── problems/          # Problem table, badges
-│   │   ├── workspace/         # WorkspaceShell, LogicEditor, CodeEditorPanel, PhaseIndicator, TestResults, SolvedBanner
+│   │   ├── workspace/                   # WorkspaceShell, PhaseIndicator, LogicEditor,
+│   │   │                                # CodeEditorPanel, TestResults, SolvedBanner,
+│   │   │                                # CodeAnalysisCard, ProblemPanel, LanguageSelector
+│   │   ├── problems/                    # ProblemTable, DifficultyBadge
+│   │   ├── ai/HintDrawer.tsx
+│   │   ├── layout/Navbar.tsx
 │   │   └── Providers.tsx
 │   ├── lib/
-│   │   ├── auth.ts            # NextAuth config
-│   │   ├── gemini.ts          # AI prompt builders + JSON validation
-│   │   ├── local-exec.ts      # Local code execution (spawn)
-│   │   ├── piston.ts          # Execution router (local/Piston)
-│   │   ├── prisma.ts          # Prisma client singleton
-│   │   └── utils.ts
-│   ├── store/
-│   │   └── workspace.ts       # Zustand store for the workspace page
+│   │   ├── prisma.ts                    # Singleton client
+│   │   ├── auth.ts                      # NextAuth config
+│   │   ├── api-auth.ts                  # getAuthedUserId() helper
+│   │   ├── rate-limit.ts                # In-memory token bucket + presets
+│   │   ├── gemini.ts                    # AI client + prompt templates
+│   │   ├── piston.ts                    # Execution backend router
+│   │   ├── local-exec.ts                # spawn() implementation (dev only)
+│   │   ├── leaderboard.ts               # Cached aggregation (unstable_cache, 60s TTL)
+│   │   └── utils.ts                     # cn(), safeJsonParse(), formatters
+│   ├── store/workspace.ts               # Zustand: phases, code, hints, save status
 │   └── types/
-│       └── index.ts
-└── README.md
+│       ├── index.ts                     # Shared DTOs
+│       └── next-auth.d.ts               # session.user.id augmentation
+└── package.json
 ```
+
+---
+
+## How it works
+
+### The phases
+
+`understand → logic → coding → solved`. Each is gated:
+
+- **understand → logic**: a single button click; persists `phase` to the DB.
+- **logic → coding**: requires `Progress.logicApproved = true`, set by the AI logic-review endpoint when it returns an approved verdict.
+- **coding → solved**: requires all test cases to pass on submit.
+
+The PhaseIndicator allows backward navigation through any phase you've ever reached (tracked as `maxPhase` in the store) but never forward to phases you haven't unlocked.
+
+### Auto-save
+
+Every keystroke debounces a `PATCH /api/progress` 1.2s after you stop typing. Drafts are stored as a JSON map of `{ python, javascript, java }` so switching language preserves each draft independently. Reset clears the draft for the active language only.
+
+### Hint sequencing
+
+A bitmask on `Progress.hintsRevealedMask` tracks which hint levels (1, 2, 3) you've revealed. Requesting hint N when N-1 hasn't been revealed returns 409. Repeat clicks for the same level still show the hint but don't inflate `hintsUsed`.
+
+### Code analysis caching
+
+After the AI analyzes an accepted submission, the JSON is persisted on `Submission.analysisJson`. Re-clicking **Analyze My Solution** for the same code returns the cached result; passing `refresh: true` forces a re-call.
+
+### Acceptance rate
+
+Computed live on every submit: each new submission increments `Problem.submissionCount`, and accepted ones also increment `Problem.acceptedCount`. The displayed rate is `acceptedCount / submissionCount * 100`.
+
+### Rate limits
+
+In-memory fixed-window counters per (userId or IP, endpoint). Defaults:
+
+| Endpoint group              | Limit       |
+|-----------------------------|-------------|
+| AI (review/hint/analyze)    | 30 / min    |
+| Code exec (run/submit)      | 20 / min    |
+| Progress (autosave + nav)   | 120 / min   |
+| Auth registration           | 5 / hour    |
+
+In-memory state is per-function-instance — fine for hobby traffic. For production scale, swap [src/lib/rate-limit.ts](src/lib/rate-limit.ts) for Upstash Redis (same API surface).
 
 ---
 
 ## Scripts
 
 ```bash
-npm run dev        # Start dev server
-npm run build      # Production build
-npm run start      # Start production server (after build)
+npm run dev        # Next.js dev server (Turbopack)
+npm run build      # prisma generate && prisma migrate deploy && next build
+npm run start      # Start the production build
 npm run lint       # ESLint
-npm run db:migrate # Run Prisma migrations
-npm run db:seed    # Seed problems + demo user
-npm run db:studio  # Open Prisma Studio
+npm run db:migrate # prisma migrate dev (creates migration files)
+npm run db:seed    # ts-node prisma/seed.ts (idempotent upsert)
+npm run db:studio  # Prisma Studio
 ```
+
+---
+
+## Troubleshooting
+
+| Symptom                                                                 | Likely cause / fix                                                                                       |
+|-------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `Code execution isn't available in this hosted environment`             | `EXEC_BACKEND` env var is unset on Vercel. Set it to `jdoodle` and redeploy.                             |
+| `Invalid JDoodle credentials`                                           | Re-copy `JDOODLE_CLIENT_ID` and `JDOODLE_CLIENT_SECRET` from JDoodle's dashboard. Watch for whitespace.  |
+| `JDoodle daily free quota exceeded (200 executions/day)`                | The free tier resets at midnight UTC. Wait or upgrade.                                                   |
+| `API key not valid` from Gemini                                         | Either the model name doesn't exist for your project, or the key was pasted with a leading space.        |
+| `AI response was truncated`                                             | Gemini ran out of output tokens. Raise `maxOutputTokens` in `src/lib/gemini.ts`.                          |
+| Build fails on `prisma migrate deploy`                                  | Schema drift between your migration files and the live DB. Inspect Prisma logs and reconcile manually.   |
+| `Too many requests. Try again in ~Ns.`                                  | You hit the rate limit (table above). Wait the duration shown.                                           |
+| `Run Tests` works locally but fails on Vercel                           | Local backend (spawning `python`/`node`/`java`) only works on your dev machine. Use JDoodle on Vercel.    |
+
+---
+
+## Security notes
+
+- Passwords hashed with **bcryptjs** (10 rounds)
+- Sessions are signed JWTs (NextAuth v5 default)
+- All `/api/ai/*` and `/api/{execute,submit}` routes verify auth + per-user rate limits
+- The Logic Gate is enforced **server-side** on `/api/execute` and `/api/submit` (frontend lock is cosmetic)
+- No `dangerouslySetInnerHTML`, no `eval`, no raw SQL — Prisma everywhere
+- Code execution runs on JDoodle's sandbox in production; never on your own host
+- Markdown rendering is hand-rolled and only handles trusted seed content; if you ever accept user-authored problems, swap to `react-markdown` + `rehype-sanitize`
+
+If you find a security issue, open a private security advisory on GitHub rather than a public issue.
+
+---
+
+## Contributing
+
+PRs welcome. The repo aims to stay lean — single-purpose, no plugin system, no admin UI. Things that would be obvious wins:
+
+- Additional problems (use `prisma/seed-extended.ts` as the format)
+- More animations (the workspace already uses Framer Motion)
+- Internationalization
+- Additional execution backends (e.g., Judge0, browser-side Pyodide)
+- Replace the markdown renderer with a vetted library
+- Move rate-limit storage to Upstash for multi-instance deployments
+
+Please run `npm run lint` and `npm run build` before pushing.
 
 ---
 
 ## License
 
-MIT — use this however you like.
+MIT — see [LICENSE](LICENSE) for the full text.
+
+---
+
+## Acknowledgements
+
+- **Google Gemini** for the AI tutor
+- **JDoodle** for the free Compiler API
+- **Neon** for serverless Postgres
+- **Vercel** for hosting
+- **Anthropic Claude** for pair-programming the initial scaffold

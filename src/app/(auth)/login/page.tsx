@@ -90,7 +90,10 @@ function LoginForm() {
 
       <div className="text-xs text-neutral-500 text-center">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="text-emerald-400 hover:text-emerald-300">
+        <Link
+          href={`/register?next=${encodeURIComponent(next)}`}
+          className="text-emerald-400 hover:text-emerald-300"
+        >
           Create one
         </Link>
       </div>

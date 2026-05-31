@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getAuthedUserId } from "@/lib/api-auth";
 import { runTestCases } from "@/lib/piston";
-import type { TestCase, Language } from "@/types";
+import type { TestCase, Language, TestResult } from "@/types";
 import { safeJsonParse } from "@/lib/utils";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  callerIdentity,
+  EXEC_RATE,
+} from "@/lib/rate-limit";
 
 const schema = z.object({
   problemId: z.string(),
@@ -12,13 +18,36 @@ const schema = z.object({
   language: z.enum(["python", "javascript", "java"]),
 });
 
+/** Median runtime across test results (in ms), formatted as "Nms". */
+function summarizeRuntime(results: TestResult[]): string | null {
+  const ms: number[] = [];
+  for (const r of results) {
+    if (!r.runtime) continue;
+    const m = r.runtime.match(/(\d+(?:\.\d+)?)\s*ms/i);
+    if (m) ms.push(parseFloat(m[1]));
+  }
+  if (ms.length === 0) return null;
+  ms.sort((a, b) => a - b);
+  const mid = ms[Math.floor(ms.length / 2)];
+  return `${Math.round(mid)}ms`;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string } | undefined)?.id;
+    const userId = await getAuthedUserId();
     if (!userId) {
       return NextResponse.json({ error: "Sign in to submit." }, { status: 401 });
     }
+
+    const limit = checkRateLimit(
+      `submit:${callerIdentity(req, userId)}`,
+      EXEC_RATE
+    );
+    const limitResponse = rateLimitResponse(
+      limit,
+      "Too many submissions in a short window. Take a moment to think between attempts."
+    );
+    if (limitResponse) return limitResponse;
 
     const body = await req.json();
     const parsed = schema.safeParse(body);
@@ -59,31 +88,63 @@ export async function POST(req: NextRequest) {
       ? "Runtime Error"
       : "Wrong Answer";
 
-    await prisma.submission.create({
-      data: {
-        userId,
-        problemId,
-        language,
-        logicText: progress.logicText ?? "",
-        code,
-        status,
-        testsPassed: passed,
-        testsTotal: total,
-      },
-    });
+    const runtime = summarizeRuntime(results);
 
-    if (allPassed) {
-      await prisma.progress.update({
-        where: { userId_problemId: { userId, problemId } },
-        data: { phase: "solved", solvedAt: new Date() },
+    // L-8: persist perf metrics. M-1: bump live counters and refresh
+    // acceptanceRate based on the new totals. Wrap in a transaction so
+    // the submission row, progress update, and counters are all consistent.
+    await prisma.$transaction(async (tx) => {
+      await tx.submission.create({
+        data: {
+          userId,
+          problemId,
+          language,
+          logicText: progress.logicText ?? "",
+          code,
+          status,
+          testsPassed: passed,
+          testsTotal: total,
+          runtime: runtime ?? undefined,
+        },
       });
-    }
+
+      const updatedProblem = await tx.problem.update({
+        where: { id: problemId },
+        data: {
+          submissionCount: { increment: 1 },
+          ...(allPassed ? { acceptedCount: { increment: 1 } } : {}),
+        },
+        select: { submissionCount: true, acceptedCount: true },
+      });
+
+      const newRate =
+        updatedProblem.submissionCount > 0
+          ? (updatedProblem.acceptedCount / updatedProblem.submissionCount) * 100
+          : 0;
+      await tx.problem.update({
+        where: { id: problemId },
+        data: { acceptanceRate: newRate },
+      });
+
+      if (allPassed) {
+        await tx.progress.update({
+          where: { userId_problemId: { userId, problemId } },
+          data: {
+            phase: "solved",
+            // Only stamp solvedAt the FIRST time the user solves — preserves
+            // their original time-to-solve through later resubmissions.
+            ...(progress.solvedAt ? {} : { solvedAt: new Date() }),
+          },
+        });
+      }
+    });
 
     return NextResponse.json({
       status,
       testsPassed: passed,
       testsTotal: total,
       results,
+      runtime,
     });
   } catch (err) {
     console.error("submit error", err);
