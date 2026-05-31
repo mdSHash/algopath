@@ -127,6 +127,8 @@ export interface ProgressDTO {
   phase: Phase;
   logicApproved: boolean;
   logicText: string;
+  /** Auto-saved code drafts keyed by language. Survives refresh + signin. */
+  codeDrafts: Partial<Record<Language, string>>;
   hintsUsed: number;
   solvedAt: string | null;
 }

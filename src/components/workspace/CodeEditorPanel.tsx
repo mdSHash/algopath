@@ -1,9 +1,18 @@
 "use client";
 import { Suspense, lazy, useEffect } from "react";
-import { Lock, Lightbulb, Play, RotateCcw, Send, Loader2 } from "lucide-react";
+import {
+  Lock,
+  Lightbulb,
+  Play,
+  RotateCcw,
+  Send,
+  Loader2,
+  Check,
+  CloudUpload,
+} from "lucide-react";
 import { useWorkspaceStore } from "@/store/workspace";
 import { LanguageSelector } from "./LanguageSelector";
-import type { ProblemDTO } from "@/types";
+import type { ProblemDTO, Language } from "@/types";
 
 const MonacoEditor = lazy(() =>
   import("@monaco-editor/react").then((m) => ({ default: m.default }))
@@ -15,12 +24,16 @@ export function CodeEditorPanel({
   onSubmit,
   onHint,
   onResetCode,
+  onLanguageChange,
+  saveStatus = "idle",
 }: {
   problem: ProblemDTO;
   onRun: () => void;
   onSubmit: () => void;
   onHint: () => void;
   onResetCode: () => void;
+  onLanguageChange?: (lang: Language) => void;
+  saveStatus?: "idle" | "saving" | "saved";
 }) {
   const phase = useWorkspaceStore((s) => s.phase);
   const language = useWorkspaceStore((s) => s.language);
@@ -33,27 +46,37 @@ export function CodeEditorPanel({
 
   const locked = !logicApproved && phase !== "solved";
 
-  // Initialize starter code when language changes (only if code is empty)
+  // Initialize starter code when language changes (only if code is empty AND
+  // the parent didn't provide a draft-aware language switcher).
   useEffect(() => {
-    if (!code && problem.starterCode) {
+    if (!onLanguageChange && !code && problem.starterCode) {
       setCode(problem.starterCode[language] ?? "");
     }
-  }, [language, problem, code, setCode]);
+  }, [language, problem, code, setCode, onLanguageChange]);
 
   const monacoLang =
     language === "python" ? "python" : language === "java" ? "java" : "javascript";
 
+  const handleLangChange = (l: Language) => {
+    if (onLanguageChange) {
+      onLanguageChange(l);
+    } else {
+      setLanguage(l);
+      setCode(problem.starterCode[l] ?? "");
+    }
+  };
+
   return (
     <div className="relative flex flex-col h-full bg-[#0a0a0a]">
       <div className="px-3 py-2.5 border-b border-[#2a2a2a] flex items-center justify-between gap-2 flex-wrap">
-        <LanguageSelector
-          value={language}
-          onChange={(l) => {
-            setLanguage(l);
-            setCode(problem.starterCode[l] ?? "");
-          }}
-          disabled={locked}
-        />
+        <div className="flex items-center gap-3">
+          <LanguageSelector
+            value={language}
+            onChange={handleLangChange}
+            disabled={locked}
+          />
+          <SaveIndicator status={saveStatus} />
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={onResetCode}
@@ -151,4 +174,24 @@ function LockedOverlay() {
       </div>
     </div>
   );
+}
+
+function SaveIndicator({ status }: { status: "idle" | "saving" | "saved" }) {
+  if (status === "saving") {
+    return (
+      <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+        <CloudUpload size={11} className="animate-pulse" />
+        Saving…
+      </span>
+    );
+  }
+  if (status === "saved") {
+    return (
+      <span className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+        <Check size={11} />
+        Saved
+      </span>
+    );
+  }
+  return null;
 }

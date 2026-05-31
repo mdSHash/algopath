@@ -30,7 +30,21 @@ const patchSchema = z.object({
   problemId: z.string(),
   phase: z.enum(["understand", "logic", "coding", "solved"]).optional(),
   logicText: z.string().max(20000).optional(),
+  // Auto-save: code is keyed by language so each language keeps its own draft.
+  code: z.string().max(60000).optional(),
+  language: z.enum(["python", "javascript", "java"]).optional(),
 });
+
+function safeParseDrafts(raw: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, string>)
+      : {};
+  } catch {
+    return {};
+  }
+}
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
@@ -44,7 +58,21 @@ export async function PATCH(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
-  const { problemId, phase, logicText } = parsed.data;
+  const { problemId, phase, logicText, code, language } = parsed.data;
+
+  // Merge a new code draft into the existing JSON map without losing other
+  // languages' drafts. Read-modify-write is fine here — saves are infrequent
+  // (debounced on the client) and per-user-per-problem, so contention is low.
+  let mergedDrafts: Record<string, string> | undefined;
+  if (code !== undefined && language) {
+    const existing = await prisma.progress.findUnique({
+      where: { userId_problemId: { userId, problemId } },
+      select: { codeDrafts: true },
+    });
+    const drafts = existing ? safeParseDrafts(existing.codeDrafts) : {};
+    drafts[language] = code;
+    mergedDrafts = drafts;
+  }
 
   const updated = await prisma.progress.upsert({
     where: { userId_problemId: { userId, problemId } },
@@ -53,10 +81,12 @@ export async function PATCH(req: NextRequest) {
       problemId,
       phase: phase ?? "understand",
       logicText: logicText ?? "",
+      codeDrafts: mergedDrafts ? JSON.stringify(mergedDrafts) : "{}",
     },
     update: {
       ...(phase ? { phase } : {}),
       ...(logicText !== undefined ? { logicText } : {}),
+      ...(mergedDrafts ? { codeDrafts: JSON.stringify(mergedDrafts) } : {}),
     },
   });
 
@@ -65,6 +95,7 @@ export async function PATCH(req: NextRequest) {
     phase: updated.phase,
     logicApproved: updated.logicApproved,
     logicText: updated.logicText,
+    codeDrafts: safeParseDrafts(updated.codeDrafts),
     hintsUsed: updated.hintsUsed,
     solvedAt: updated.solvedAt?.toISOString() ?? null,
   });

@@ -51,6 +51,10 @@ export default async function WorkspacePage({
         phase: progressRow.phase as ProgressDTO["phase"],
         logicApproved: progressRow.logicApproved,
         logicText: progressRow.logicText,
+        codeDrafts: safeJsonParse<ProgressDTO["codeDrafts"]>(
+          progressRow.codeDrafts,
+          {}
+        ),
         hintsUsed: progressRow.hintsUsed,
         solvedAt: progressRow.solvedAt?.toISOString() ?? null,
       }

@@ -13,7 +13,7 @@ import { SolvedBanner } from "./SolvedBanner";
 import { CodeAnalysisCard } from "./CodeAnalysisCard";
 import { HintDrawer } from "@/components/ai/HintDrawer";
 import { useWorkspaceStore } from "@/store/workspace";
-import type { ProblemDTO, ProgressDTO, Phase } from "@/types";
+import type { ProblemDTO, ProgressDTO, Phase, Language } from "@/types";
 
 export function WorkspaceShell({
   problem,
@@ -27,6 +27,14 @@ export function WorkspaceShell({
   const store = useWorkspaceStore();
   const initRef = useRef(false);
   const [solvedTestsTotal, setSolvedTestsTotal] = useState(problem.testCases.length);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // Drafts of the user's code, keyed by language. Hydrated from server on
+  // mount and updated on every save. Used to swap drafts when the user
+  // toggles between languages without re-fetching from the server.
+  const draftsRef = useRef<Partial<Record<Language, string>>>({});
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Hydrate from server progress on mount
   useEffect(() => {
@@ -47,10 +55,73 @@ export function WorkspaceShell({
         ? "coding"
         : initialProgress.phase;
       store.setMaxPhase(highest);
+
+      // Restore code drafts for every language and load the active one.
+      draftsRef.current = { ...(initialProgress.codeDrafts ?? {}) };
     }
-    store.setCode(problem.starterCode[store.language] ?? "");
+    const initialDraft = draftsRef.current[store.language];
+    store.setCode(
+      initialDraft && initialDraft.length > 0
+        ? initialDraft
+        : problem.starterCode[store.language] ?? ""
+    );
     store.setStartedAt(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced auto-save: every code change schedules a PATCH 1.2s after the
+  // user stops typing. Cleared on unmount so we don't keep timers around.
+  useEffect(() => {
+    if (!initRef.current) return;
+    if (sessionStatus !== "authenticated") return;
+    // Only persist while in coding/solved phases — drafts in earlier phases
+    // are still untouched starter code.
+    if (store.phase !== "coding" && store.phase !== "solved") return;
+
+    const lang = store.language;
+    const code = store.code;
+
+    // No-op if the in-memory draft already matches what we have for this
+    // language — avoids spamming PATCH on language toggles.
+    if (draftsRef.current[lang] === code) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setSaveStatus("saving");
+      fetch("/api/progress", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problemId: problem.id,
+          code,
+          language: lang,
+        }),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`save failed ${res.status}`);
+          draftsRef.current[lang] = code;
+          setSaveStatus("saved");
+          if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+          savedFlashTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
+        })
+        .catch(() => {
+          setSaveStatus("idle");
+        });
+    }, 1200);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [store.code, store.language, store.phase, sessionStatus, problem.id]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+    };
   }, []);
 
   const handleNavigatePhase = async (target: Phase) => {
@@ -138,7 +209,25 @@ export function WorkspaceShell({
   };
 
   const handleResetCode = () => {
-    store.setCode(problem.starterCode[store.language] ?? "");
+    const starter = problem.starterCode[store.language] ?? "";
+    store.setCode(starter);
+    // Clear the in-memory draft for this language so the auto-save effect
+    // sees a real change and persists the reset.
+    delete draftsRef.current[store.language];
+  };
+
+  const handleLanguageChange = (next: Language) => {
+    if (next === store.language) return;
+    // Snapshot the current language's code as its draft *before* switching,
+    // so the user can return to it without losing edits.
+    if (store.code) draftsRef.current[store.language] = store.code;
+    store.setLanguage(next);
+    const restored = draftsRef.current[next];
+    store.setCode(
+      restored && restored.length > 0
+        ? restored
+        : problem.starterCode[next] ?? ""
+    );
   };
 
   const handleRunTests = async () => {
@@ -318,6 +407,8 @@ export function WorkspaceShell({
                 onSubmit={handleSubmit}
                 onHint={handleOpenHint}
                 onResetCode={handleResetCode}
+                onLanguageChange={handleLanguageChange}
+                saveStatus={saveStatus}
               />
             </div>
             {store.testResults && store.testResults.length > 0 && (

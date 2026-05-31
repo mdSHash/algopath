@@ -65,6 +65,8 @@ model Progress {
   phase         String    @default("understand")
   logicApproved Boolean   @default(false)
   logicText     String    @default("")
+  /// JSON map of language -> draft source code, e.g. {"python":"...", "javascript":"...", "java":"..."}
+  codeDrafts    String    @default("{}")
   hintsUsed     Int       @default(0)
   solvedAt      DateTime?
   updatedAt     DateTime  @updatedAt
