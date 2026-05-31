@@ -109,14 +109,66 @@ async function runTestCasesPiston(
 }
 
 /**
+ * Whether code execution is actually possible in the current runtime.
+ * Vercel's Node functions don't have python/java/etc, so spawning them
+ * fails with ENOENT. When `EXEC_BACKEND=local` (the default) and we're
+ * on Vercel without an alternative backend, fall back to a friendly
+ * "not available" message instead of cryptic spawn errors.
+ */
+function execBackend():
+  | { kind: "local" }
+  | { kind: "piston"; url: string }
+  | { kind: "disabled"; reason: string } {
+  const raw = (process.env.EXEC_BACKEND ?? "").toLowerCase().trim();
+
+  if (raw === "piston") {
+    return { kind: "piston", url: process.env.PISTON_URL ?? DEFAULT_PISTON_URL };
+  }
+  if (raw === "disabled") {
+    return {
+      kind: "disabled",
+      reason:
+        "Code execution is disabled in this environment. Run AlgoPath locally to test your solutions against the provided test cases.",
+    };
+  }
+
+  // Default ("local" or unset). On Vercel / hosted serverless runtimes,
+  // local spawning will fail because python/java aren't installed.
+  if (process.env.VERCEL === "1" || process.env.NEXT_RUNTIME === "edge") {
+    return {
+      kind: "disabled",
+      reason:
+        "Code execution isn't available in this hosted environment — Vercel's Node runtime doesn't ship with Python or Java. Run AlgoPath locally for full execution, or configure a self-hosted Piston instance via EXEC_BACKEND=piston + PISTON_URL.",
+    };
+  }
+
+  return { kind: "local" };
+}
+
+function disabledResults(testCases: TestCase[], reason: string, limit?: number): TestResult[] {
+  return (limit ? testCases.slice(0, limit) : testCases).map((tc, i) => ({
+    testCase: i + 1,
+    input: tc.input,
+    expectedOutput: tc.expectedOutput.trim(),
+    actualOutput: "",
+    passed: false,
+    error: reason,
+  }));
+}
+
+/**
  * Run a user's submission against test cases. Defaults to local execution
  * (spawning python / node / java on the host) — appropriate for a localhost
  * dev tool, and required because the public Piston API became whitelist-only
  * in February 2026.
  *
- * To use a self-hosted Piston instance instead, set:
- *   EXEC_BACKEND=piston
- *   PISTON_URL=https://your-piston-instance/api/v2/piston/execute
+ * Backends (controlled by EXEC_BACKEND env var):
+ *   "local"    — default, spawns python/node/java on the server
+ *   "piston"   — POSTs to a Piston instance (set PISTON_URL)
+ *   "disabled" — returns a friendly "not available" message per test
+ *
+ * Auto-detection: when running on Vercel, falls back to "disabled" because
+ * the Node runtime there has no language interpreters.
  */
 export async function runTestCases(
   code: string,
@@ -124,14 +176,21 @@ export async function runTestCases(
   testCases: TestCase[],
   options: { delayMs?: number; limit?: number } = {}
 ): Promise<TestResult[]> {
-  const backend = (process.env.EXEC_BACKEND ?? "local").toLowerCase();
+  const backend = execBackend();
 
-  if (backend === "piston") {
-    const url = process.env.PISTON_URL ?? DEFAULT_PISTON_URL;
-    return runTestCasesPiston(url, code, language, testCases, options);
+  if (backend.kind === "disabled") {
+    return disabledResults(testCases, backend.reason, options.limit);
+  }
+
+  if (backend.kind === "piston") {
+    return runTestCasesPiston(backend.url, code, language, testCases, options);
   }
 
   return runTestCasesLocally(code, language, testCases, {
     limit: options.limit,
   });
+}
+
+export function isExecutionAvailable(): boolean {
+  return execBackend().kind !== "disabled";
 }
