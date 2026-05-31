@@ -119,8 +119,22 @@ function execBackend():
   | { kind: "local" }
   | { kind: "piston"; url: string }
   | { kind: "runner"; url: string; apiKey: string | null }
+  | { kind: "jdoodle"; clientId: string; clientSecret: string }
   | { kind: "disabled"; reason: string } {
   const raw = (process.env.EXEC_BACKEND ?? "").toLowerCase().trim();
+
+  if (raw === "jdoodle") {
+    const clientId = (process.env.JDOODLE_CLIENT_ID ?? "").trim();
+    const clientSecret = (process.env.JDOODLE_CLIENT_SECRET ?? "").trim();
+    if (!clientId || !clientSecret) {
+      return {
+        kind: "disabled",
+        reason:
+          "EXEC_BACKEND=jdoodle is set but JDOODLE_CLIENT_ID and/or JDOODLE_CLIENT_SECRET are missing. Sign up free at https://www.jdoodle.com/compiler-api and add both to your env vars.",
+      };
+    }
+    return { kind: "jdoodle", clientId, clientSecret };
+  }
 
   if (raw === "runner") {
     const url = (process.env.RUNNER_URL ?? "").trim().replace(/\/$/, "");
@@ -128,7 +142,7 @@ function execBackend():
       return {
         kind: "disabled",
         reason:
-          "EXEC_BACKEND=runner is set but RUNNER_URL is missing. Set it to your deployed runner service URL (e.g. https://algopath-runner.onrender.com).",
+          "EXEC_BACKEND=runner is set but RUNNER_URL is missing. Set it to your deployed runner service URL.",
       };
     }
     return {
@@ -155,11 +169,138 @@ function execBackend():
     return {
       kind: "disabled",
       reason:
-        "Code execution isn't available in this hosted environment — Vercel's Node runtime doesn't ship with Python or Java. Deploy the AlgoPath runner (see runner/README.md) and set EXEC_BACKEND=runner + RUNNER_URL + RUNNER_API_KEY.",
+        "Code execution isn't available in this hosted environment. Set EXEC_BACKEND=jdoodle and add your free JDoodle credentials, or self-host the runner (see runner/README.md).",
     };
   }
 
   return { kind: "local" };
+}
+
+interface JDoodleResponse {
+  output?: string;
+  statusCode?: number;
+  memory?: string;
+  cpuTime?: string;
+  error?: string;
+  isExecutionSuccess?: boolean;
+}
+
+const JDOODLE_LANG: Record<
+  Language,
+  { language: string; versionIndex: string }
+> = {
+  python: { language: "python3", versionIndex: "4" },
+  javascript: { language: "nodejs", versionIndex: "4" },
+  java: { language: "java", versionIndex: "4" },
+};
+
+async function runTestCasesJDoodle(
+  clientId: string,
+  clientSecret: string,
+  code: string,
+  language: Language,
+  testCases: TestCase[],
+  options: { delayMs?: number; limit?: number } = {}
+): Promise<TestResult[]> {
+  const cases = options.limit ? testCases.slice(0, options.limit) : testCases;
+  const results: TestResult[] = [];
+  const spec = JDOODLE_LANG[language];
+  const versionIndex =
+    process.env[`JDOODLE_VERSION_${language.toUpperCase()}`]?.trim() ||
+    spec.versionIndex;
+
+  for (let i = 0; i < cases.length; i++) {
+    const tc = cases[i];
+    const startedAt = Date.now();
+
+    try {
+      const response = await fetch("https://api.jdoodle.com/v1/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          clientSecret,
+          script: code,
+          stdin: tc.input,
+          language: spec.language,
+          versionIndex,
+          compileOnly: false,
+        }),
+      });
+
+      const wallMs = Date.now() - startedAt;
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        // 401/403 = bad credentials; 429 = quota exceeded
+        const detail =
+          response.status === 401 || response.status === 403
+            ? "Invalid JDoodle credentials. Double-check JDOODLE_CLIENT_ID and JDOODLE_CLIENT_SECRET."
+            : response.status === 429
+            ? "JDoodle daily free quota exceeded (200 executions/day). Try again tomorrow or upgrade."
+            : `JDoodle returned ${response.status}${text ? `: ${text.slice(0, 200)}` : ""}`;
+        results.push({
+          testCase: i + 1,
+          input: tc.input,
+          expectedOutput: tc.expectedOutput.trim(),
+          actualOutput: "",
+          passed: false,
+          error: detail,
+        });
+        continue;
+      }
+
+      const data = (await response.json()) as JDoodleResponse;
+      if (data.error) {
+        results.push({
+          testCase: i + 1,
+          input: tc.input,
+          expectedOutput: tc.expectedOutput.trim(),
+          actualOutput: "",
+          passed: false,
+          error: `JDoodle: ${data.error.slice(0, 400)}`,
+        });
+        continue;
+      }
+
+      const stdout = (data.output ?? "").replace(/\r\n/g, "\n").trim();
+      const expected = tc.expectedOutput.replace(/\r\n/g, "\n").trim();
+      const passed = stdout === expected;
+
+      // JDoodle's `cpuTime` is a stringified seconds value; fall back to
+      // wall-clock if it's missing or unparseable.
+      let runtimeMs: number = wallMs;
+      const cpu = parseFloat(data.cpuTime ?? "");
+      if (!Number.isNaN(cpu) && cpu >= 0) runtimeMs = Math.round(cpu * 1000);
+
+      results.push({
+        testCase: i + 1,
+        input: tc.input,
+        expectedOutput: expected,
+        actualOutput: stdout,
+        passed,
+        runtime: `${runtimeMs}ms`,
+      });
+    } catch (err) {
+      results.push({
+        testCase: i + 1,
+        input: tc.input,
+        expectedOutput: tc.expectedOutput.trim(),
+        actualOutput: "",
+        passed: false,
+        error:
+          err instanceof Error
+            ? `JDoodle request failed: ${err.message}`
+            : "JDoodle request failed",
+      });
+    }
+
+    if (options.delayMs && i < cases.length - 1) {
+      await sleep(options.delayMs);
+    }
+  }
+
+  return results;
 }
 
 interface RunnerExecResult {
@@ -274,8 +415,11 @@ function disabledResults(testCases: TestCase[], reason: string, limit?: number):
  *
  * Backends (controlled by EXEC_BACKEND env var):
  *   "local"    — default, spawns python/node/java on the server (dev only)
- *   "runner"   — POSTs to the AlgoPath runner service (set RUNNER_URL +
- *                RUNNER_API_KEY). This is the production path on Vercel.
+ *   "jdoodle"  — POSTs to JDoodle's free Compiler API (set
+ *                JDOODLE_CLIENT_ID + JDOODLE_CLIENT_SECRET). 200 executions
+ *                per day on the free tier, no credit card required.
+ *   "runner"   — POSTs to a self-hosted AlgoPath runner (set RUNNER_URL +
+ *                RUNNER_API_KEY). For when you have your own host.
  *   "piston"   — POSTs to a Piston instance (set PISTON_URL)
  *   "disabled" — returns a friendly "not available" message per test
  *
@@ -293,6 +437,17 @@ export async function runTestCases(
 
   if (backend.kind === "disabled") {
     return disabledResults(testCases, backend.reason, options.limit);
+  }
+
+  if (backend.kind === "jdoodle") {
+    return runTestCasesJDoodle(
+      backend.clientId,
+      backend.clientSecret,
+      code,
+      language,
+      testCases,
+      options
+    );
   }
 
   if (backend.kind === "runner") {
