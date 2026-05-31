@@ -10,6 +10,7 @@ import { LogicReviewPanel } from "./LogicReviewPanel";
 import { CodeEditorPanel } from "./CodeEditorPanel";
 import { TestResults } from "./TestResults";
 import { SolvedBanner } from "./SolvedBanner";
+import { CodeAnalysisCard } from "./CodeAnalysisCard";
 import { HintDrawer } from "@/components/ai/HintDrawer";
 import { useWorkspaceStore } from "@/store/workspace";
 import type { ProblemDTO, ProgressDTO, Phase } from "@/types";
@@ -296,12 +297,19 @@ export function WorkspaceShell({
               collapsed
             />
             {store.phase === "solved" && (
-              <SolvedBanner
-                problemTitle={problem.title}
-                elapsedMs={elapsedMs}
-                hintsUsed={store.hintsRevealed}
-                testsTotal={solvedTestsTotal}
-              />
+              <div className="overflow-y-auto max-h-[60vh] border-b border-[#2a2a2a]">
+                <SolvedBanner
+                  problemTitle={problem.title}
+                  elapsedMs={elapsedMs}
+                  hintsUsed={store.hintsRevealed}
+                  testsTotal={solvedTestsTotal}
+                />
+                <CodeAnalysisCard
+                  problemId={problem.id}
+                  code={store.code}
+                  language={store.language}
+                />
+              </div>
             )}
             <div className="flex-1 min-h-0">
               <CodeEditorPanel

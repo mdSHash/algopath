@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Code2, LogOut, User as UserIcon } from "lucide-react";
+import { Code2, LogOut, Trophy } from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -34,6 +34,17 @@ export function Navbar() {
               }`}
             >
               Problems
+            </Link>
+            <Link
+              href="/leaderboard"
+              className={`px-3 py-1.5 rounded-md text-sm transition flex items-center gap-1.5 ${
+                isActive("/leaderboard")
+                  ? "text-emerald-400 bg-emerald-400/10"
+                  : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-900"
+              }`}
+            >
+              <Trophy size={13} />
+              Leaderboard
             </Link>
             {user ? (
               <Link

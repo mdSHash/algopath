@@ -72,6 +72,33 @@ export interface CodeReview {
   suggestion: string;
 }
 
+export type ComplexityVerdict =
+  | "Optimal"
+  | "Good"
+  | "Acceptable"
+  | "Suboptimal";
+
+export interface CodeAnalysis {
+  yourComplexity: {
+    time: string;
+    space: string;
+  };
+  optimalComplexity: {
+    time: string;
+    space: string;
+  };
+  isOptimal: boolean;
+  verdict: ComplexityVerdict;
+  /** Why your complexity is what it is (1-2 short sentences). */
+  reasoning: string;
+  /** Things the solution does well (1-3 items). */
+  strengths: string[];
+  /** Concrete improvements the user could make (0-3 items, empty if optimal). */
+  suggestions: string[];
+  /** Memory-specific notes — auxiliary structures, in-place hints, etc. */
+  memoryNotes: string;
+}
+
 export interface TestResult {
   testCase: number;
   input: string;

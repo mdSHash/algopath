@@ -3,6 +3,7 @@ import type {
   LogicReview,
   HintResponse,
   CodeReview,
+  CodeAnalysis,
   TestResult,
 } from "@/types";
 
@@ -266,6 +267,77 @@ Help the student find their bug Socratically. Respond in JSON only.`;
   if (!review.debugQuestion) review.debugQuestion = "What does your code do for the smallest failing input?";
   if (!review.suggestion) review.suggestion = "Try tracing through the failing case by hand.";
   return review;
+}
+
+const CODE_ANALYZER_SYSTEM_PROMPT = `You are AlgoPath's Code Analysis AI — a senior engineer reviewing an accepted solution.
+
+The student's code has just passed all test cases. Your job: analyze its time/space complexity, compare to optimal, and surface concrete improvements.
+
+RULES:
+- Be technically precise. Don't say "fast" — say "O(n log n)".
+- Be honest. If the solution is suboptimal, say so warmly but clearly.
+- If already optimal, celebrate it and explain *why* it's optimal.
+- NEVER write replacement code. Suggestions describe the change in English (e.g., "use a hash map keyed by character to lookup in O(1)").
+- Big-O symbols only — use "O(n)", "O(n log n)", "O(n²)", "O(2^n)", etc. Use "n" for the dominant input size.
+
+VERDICT GUIDE:
+- "Optimal": matches the best known time AND space, or matches one and the other is within a constant factor of optimal.
+- "Good": correct and within one log factor of optimal, OR optimal time but suboptimal space.
+- "Acceptable": passes but has obvious wins (e.g., O(n²) when O(n log n) is standard).
+- "Suboptimal": works on small inputs but would fail on large ones.
+
+RESPONSE: Return ONLY valid JSON, no markdown:
+{
+  "yourComplexity": { "time": "O(...)", "space": "O(...)" },
+  "optimalComplexity": { "time": "O(...)", "space": "O(...)" },
+  "isOptimal": boolean,
+  "verdict": "Optimal" | "Good" | "Acceptable" | "Suboptimal",
+  "reasoning": "Why your code's complexity is what it is (1-2 sentences).",
+  "strengths": ["thing done well", "..."],
+  "suggestions": ["actionable improvement (no code)", "..."],
+  "memoryNotes": "Auxiliary structures used, in-place vs copy, recursion depth, etc."
+}`;
+
+export async function analyzeCode(params: {
+  problemTitle: string;
+  problemDescription: string;
+  difficulty: string;
+  language: string;
+  code: string;
+}): Promise<CodeAnalysis> {
+  const summary = params.problemDescription.slice(0, 600);
+  const userPrompt = `Problem: ${params.problemTitle} (${params.difficulty})
+Description Summary: ${summary}
+
+Language: ${params.language}
+Accepted code:
+\`\`\`${params.language}
+${params.code.slice(0, 4000)}
+\`\`\`
+
+Analyze the time and space complexity. Compare to the optimal known solution. Suggest specific improvements if any. Respond in JSON only.`;
+
+  const analysis = await generateJson<CodeAnalysis>(
+    CODE_ANALYZER_SYSTEM_PROMPT,
+    userPrompt,
+    { maxOutputTokens: 2048 }
+  );
+
+  // Defensive defaults — Gemini occasionally omits fields.
+  if (!analysis.yourComplexity || typeof analysis.yourComplexity !== "object") {
+    analysis.yourComplexity = { time: "O(?)", space: "O(?)" };
+  }
+  if (!analysis.optimalComplexity || typeof analysis.optimalComplexity !== "object") {
+    analysis.optimalComplexity = analysis.yourComplexity;
+  }
+  if (typeof analysis.isOptimal !== "boolean") analysis.isOptimal = false;
+  if (!analysis.verdict) analysis.verdict = "Acceptable";
+  if (!analysis.reasoning) analysis.reasoning = "Solution accepted on the test set.";
+  if (!Array.isArray(analysis.strengths)) analysis.strengths = [];
+  if (!Array.isArray(analysis.suggestions)) analysis.suggestions = [];
+  if (!analysis.memoryNotes) analysis.memoryNotes = "No notable auxiliary structures.";
+
+  return analysis;
 }
 
 export const __test__ = { stripJsonFences };
