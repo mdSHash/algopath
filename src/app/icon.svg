@@ -1,0 +1,75 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  width="64"
+  height="64"
+  role="img"
+  aria-label="AlgoPath"
+>
+  <!-- Dark rounded square base — matches the app shell. -->
+  <rect width="64" height="64" rx="14" fill="#0a0a0a" />
+
+  <!-- Subtle emerald inner ring for premium feel. -->
+  <rect
+    x="0.5"
+    y="0.5"
+    width="63"
+    height="63"
+    rx="13.5"
+    fill="none"
+    stroke="#10b981"
+    stroke-opacity="0.25"
+    stroke-width="1"
+  />
+
+  <defs>
+    <linearGradient
+      id="emerald"
+      x1="0"
+      y1="0"
+      x2="0"
+      y2="64"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#34d399" />
+      <stop offset="1" stop-color="#059669" />
+    </linearGradient>
+    <radialGradient id="dot-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="100%" stop-color="#34d399" />
+    </radialGradient>
+  </defs>
+
+  <!-- Left brace { -->
+  <path
+    d="M 26 14 L 18 14 L 18 30 L 12 32 L 18 34 L 18 50 L 26 50"
+    stroke="url(#emerald)"
+    stroke-width="3.5"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Right brace } -->
+  <path
+    d="M 38 14 L 46 14 L 46 30 L 52 32 L 46 34 L 46 50 L 38 50"
+    stroke="url(#emerald)"
+    stroke-width="3.5"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Upward chevron between the braces — the "logic rising" mark. -->
+  <path
+    d="M 24 38 L 32 26 L 40 38"
+    stroke="url(#emerald)"
+    stroke-width="3"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Apex node: the spark of insight at the top of the chevron. -->
+  <circle cx="32" cy="26" r="2.5" fill="url(#dot-glow)" />
+</svg>

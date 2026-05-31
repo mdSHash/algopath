@@ -1,0 +1,84 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 180 180"
+  width="180"
+  height="180"
+  role="img"
+  aria-label="AlgoPath"
+>
+  <!-- iOS rounds the corners itself, but we render our own curve so the icon
+       still looks intentional when used on platforms that don't auto-mask. -->
+  <rect width="180" height="180" rx="40" fill="#0a0a0a" />
+
+  <rect
+    x="1.5"
+    y="1.5"
+    width="177"
+    height="177"
+    rx="38.5"
+    fill="none"
+    stroke="#10b981"
+    stroke-opacity="0.22"
+    stroke-width="1.5"
+  />
+
+  <defs>
+    <linearGradient
+      id="emerald-apple"
+      x1="0"
+      y1="0"
+      x2="0"
+      y2="180"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#34d399" />
+      <stop offset="1" stop-color="#059669" />
+    </linearGradient>
+    <radialGradient id="dot-glow-apple" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="100%" stop-color="#34d399" />
+    </radialGradient>
+    <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#soft-glow)">
+    <!-- Left brace { -->
+    <path
+      d="M 73 39 L 51 39 L 51 84 L 34 90 L 51 96 L 51 141 L 73 141"
+      stroke="url(#emerald-apple)"
+      stroke-width="10"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Right brace } -->
+    <path
+      d="M 107 39 L 129 39 L 129 84 L 146 90 L 129 96 L 129 141 L 107 141"
+      stroke="url(#emerald-apple)"
+      stroke-width="10"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Upward chevron — the rising-logic mark. -->
+    <path
+      d="M 67 107 L 90 73 L 113 107"
+      stroke="url(#emerald-apple)"
+      stroke-width="9"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Apex spark. -->
+    <circle cx="90" cy="73" r="7" fill="url(#dot-glow-apple)" />
+  </g>
+</svg>

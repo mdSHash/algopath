@@ -68,9 +68,8 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  icons: {
-    icon: "/favicon.ico",
-  },
+  // Next.js auto-detects app/icon.svg and app/apple-icon.svg — no explicit
+  // declaration needed. The SVG mark scales cleanly across all tab sizes.
 };
 
 export const viewport: Viewport = {
