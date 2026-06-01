@@ -9,7 +9,7 @@ A coding-practice platform that **forces you to write your problem-solving logic
 ![Languages](https://img.shields.io/badge/langs-Python%20%C2%B7%20JS%20%C2%B7%20Java-10b981?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-10b981?style=flat-square)
 
-🌐 **Live demo:** [algopath.vercel.app](https://algopath.vercel.app) · ⭐ **Star the repo** if you like the idea
+🌐 **Live demo:** [algopath.vercel.app](https://algopath-tan.vercel.app) · ⭐ **Star the repo** if you like the idea
 
 > **Demo account** (no signup needed):
 > ```
