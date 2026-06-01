@@ -65,6 +65,18 @@ export default async function LandingPage() {
               See How It Works ↓
             </a>
           </div>
+          <p
+            className="mt-5 text-xs text-neutral-500 animate-fade-up"
+            style={{ animationDelay: "0.6s" }}
+          >
+            Just looking? Sign in with the shared demo —{" "}
+            <span className="font-mono text-neutral-400">demo@algopath.dev / demo1234</span>
+            . Or{" "}
+            <Link href="/register" className="text-emerald-400 hover:text-emerald-300 transition">
+              create an account
+            </Link>{" "}
+            to track your own progress and climb the leaderboard.
+          </p>
         </div>
       </section>
 

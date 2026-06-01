@@ -1481,19 +1481,20 @@ async function main() {
     console.log(`  ✓ ${p.number}. ${p.title}`);
   }
 
-  // Demo user (helpful for local dev)
+  // Public shared-demo account. Upsert (not create-if-missing) so the rename
+  // also lands on existing deployments the next time the seed runs.
   const demoEmail = "demo@algopath.dev";
-  const existing = await prisma.user.findUnique({ where: { email: demoEmail } });
-  if (!existing) {
-    await prisma.user.create({
-      data: {
-        email: demoEmail,
-        name: "Demo User",
-        password: await bcrypt.hash("demo1234", 10),
-      },
-    });
-    console.log(`  ✓ created demo user (${demoEmail} / demo1234)`);
-  }
+  const demoName = "Public Demo (shared)";
+  await prisma.user.upsert({
+    where: { email: demoEmail },
+    update: { name: demoName },
+    create: {
+      email: demoEmail,
+      name: demoName,
+      password: await bcrypt.hash("demo1234", 10),
+    },
+  });
+  console.log(`  ✓ ensured demo user (${demoEmail} / demo1234)`);
 
   console.log("✅ Done.");
 }
