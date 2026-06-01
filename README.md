@@ -419,4 +419,3 @@ MIT — see [LICENSE](LICENSE) for the full text.
 - **JDoodle** for the free Compiler API
 - **Neon** for serverless Postgres
 - **Vercel** for hosting
-- **Anthropic Claude** for pair-programming the initial scaffold
